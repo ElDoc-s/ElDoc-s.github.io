@@ -18,3 +18,70 @@
 .geojson-control button:hover {
     background-color: #0056b3;
 }
+.legend {
+    background-color: rgba(255, 255, 255, 0.9); /* White background with some transparency */
+    border: 2px solid #4a90e2; /* Blue border */
+    border-radius: 1px; /* Rounded corners */
+    padding: 15px; /* Padding around content */
+    max-width: 300px; /* Maximum width */
+    position: absolute; /* Positioning on the map */
+    bottom: 20px; /* Position from top */
+    right: 20px; /* Position from right */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Shadow effect */
+    font-family: Arial, sans-serif; /* Font style */
+    z-index: 1000; /* Ensure it is on top */
+}
+
+.legend h3 {
+    margin: 0 0 10px; /* Margin below the heading */
+    color: #4a90e2; /* Heading color */
+}
+
+.legend ul {
+    list-style: none; /* Remove default list style */
+    padding: 0; /* Remove padding */
+    margin: 0; /* Remove margin */
+}
+
+.legend li {
+    display: flex; /* Flexbox for horizontal layout */
+    align-items: center; /* Center items vertically */
+    margin-bottom: 8px; /* Spacing between items */
+    font-size: 14px; /* Font size */
+    color: #333; /* Text color */
+}
+
+.marker {
+    display: inline-block; /* Inline block for markers */
+    width: 15px; /* Marker width */
+    height: 15px; /* Marker height */
+    margin-right: 10px; /* Space between marker and text */
+    border-radius: 50%; /* Circular markers */
+}
+
+.marker-type1 {
+    background-color: #e74c3c; /* Color for Type 1 */
+}
+
+.marker-type2 {
+    background-color: #f1c40f; /* Color for Type 2 */
+}
+
+.marker-type3 {
+    background-color: #2ecc71; /* Color for Type 3 */
+}
+
+
+.colored-box {
+    display: flex; /* Use flexbox for horizontal alignment */
+    align-items: center; /* Center items vertically */
+    margin-bottom: 10px; /* Space between multiple boxes */
+}
+
+.box {
+    width: 15px; /* Width of the colored box */
+    height: 15px; /* Height of the colored box */
+    margin-right: 10px; /* Space between box and text */
+    background-color: #4a90e2; /* Change this color as needed */
+    border-radius: 100px; /* Optional: rounded corners */
+}

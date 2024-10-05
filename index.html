@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa con Leaflet</title>
+    <title>Aguas Paraguas</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="style.css">
 </head>
@@ -11,5 +11,24 @@
     <div id="map" style="height: 600px;"></div>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="script.js"></script>
+    <div class="legend">
+	    <h3><u>Map Legend</u></h3>
+	    <div class="colored-box">
+		<span class="box" style="background-color: #ff0000"></span>
+		Dangerous Areas
+	    </div>
+	    <div class="colored-box">
+		<span class="box" style="background-color: #00ff00"></span>
+		Sewer Systems
+	    </div>
+	    <div class="colored-box">
+		<span class="box" style="background-color: #ffff00"></span>
+		Basins
+	    </div>
+	    <div class="colored-box">
+		<span class="box" style="background-color: #0000ff"></span>
+		Streams
+	    </div>
+    </div>
 </body>
 </html>
