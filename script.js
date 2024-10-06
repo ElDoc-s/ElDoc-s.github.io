@@ -133,7 +133,7 @@ var overlayMaps = {
                             }).addTo(map);
 
                             // Mostrar el popup con la advertencia
-                            warningMarker.bindPopup("<b>Advertencia:</b> La ruta pasa por una zona peligrosa.").openPopup();
+                            warningMarker.bindPopup("<b>Warning:</b> The route provided intersects a flood risk area.").openPopup();
 
                             // Add the warning marker to the array
                             warningMarkers.push(warningMarker);
