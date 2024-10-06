@@ -22,6 +22,12 @@ var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
 });
 
+var otm = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{
+    maxZoom:19,
+    attribution: '© OpenTopoMap'
+ 
+});
+
 var map = L.map('map', {
     center: [39.73, -104.99],
     zoom: 10,
@@ -37,13 +43,16 @@ map.setMaxBounds(bounds); // Establecer límites máximos
 map.setMinZoom(12); // Evita hacer zoom out más allá de la ciudad
 
 
+
 var lDrenaje = new L.GeoJSON.AJAX("bls/drenaje.geojson", {style: drenaje});
 var lCuencas = new L.GeoJSON.AJAX("bls/cuencas.geojson", {style: cuencas});       
 var lArroyos = new L.GeoJSON.AJAX("bls/arroyos.geojson", {style: arroyos});       
 var lPeligros = new L.GeoJSON.AJAX("bls/peligros.geojson",{style: peligros});       
 
 var baseMaps = {
-    "Map": osm
+    "Street View": osm,
+    "Topographic View": otm
+
 };
 
 var overlayMaps = {
@@ -55,9 +64,6 @@ var overlayMaps = {
 
 
 var layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
-
-
-
 
 var control = L.Routing.control({
     waypoints: [],
