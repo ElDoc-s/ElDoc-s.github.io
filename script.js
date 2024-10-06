@@ -58,7 +58,7 @@ var baseMaps = {
 var overlayMaps = {
     "Sewage Systems": lDrenaje,
     "Basins": lCuencas,
-    "Sterams": lArroyos,
+    "Streams": lArroyos,
     "Hazardous Areas": lPeligros,
 };
 
