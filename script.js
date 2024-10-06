@@ -1,29 +1,32 @@
 // Inicializa el mapa y centra en Hermosillo
 
+
 var arroyos = {
     "color": "#0000ff" // Azul
 };
 
 var peligros = {
-	"color": "#ff0000" // Rojo
+    "color": "#ff0000" // Rojo
 };
 
 var drenaje = {
-	"color": "#00ff00" // Verde
+    "color": "#00ff00" // Verde
 };
 
 var cuencas = {
-	"color": "#ffff00" // Amarillo
+    "color": "#ffff00" // Amarillo
 };
 
-
-var map = L.map('map').setView([29.0729, -110.9559], 12); // Coordenadas de Hermosillo
-
-// Agrega una capa de mapas base
-L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+var osm = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-}).addTo(map);
+    attribution: '© OpenStreetMap'
+});
+
+var map = L.map('map', {
+    center: [39.73, -104.99],
+    zoom: 10,
+    layers: [osm]
+});
 
 // Establecer límites del mapa para que no se pueda mover más allá de Hermosillo
 var bounds = L.latLngBounds(
@@ -33,129 +36,97 @@ var bounds = L.latLngBounds(
 map.setMaxBounds(bounds); // Establecer límites máximos
 map.setMinZoom(12); // Evita hacer zoom out más allá de la ciudad
 
-// Capa GeoJSON
-var lDrenaje;
 
-// Función para manejar cada característica
-function onEachFeature(feature, layer) {
-    if (feature.properties && feature.properties.popupContent) {
-        layer.bindPopup(feature.properties.popupContent);
+var lDrenaje = new L.GeoJSON.AJAX("bls/drenaje.geojson", {style: drenaje});
+var lCuencas = new L.GeoJSON.AJAX("bls/cuencas.geojson", {style: cuencas});       
+var lArroyos = new L.GeoJSON.AJAX("bls/arroyos.geojson", {style: arroyos});       
+var lPeligros = new L.GeoJSON.AJAX("bls/peligros.geojson",{style: peligros});       
+
+var baseMaps = {
+    "Map": osm
+};
+
+var overlayMaps = {
+    "Sewage Systems": lDrenaje,
+    "Basins": lCuencas,
+    "Sterams": lArroyos,
+    "Hazardous Areas": lPeligros,
+};
+
+
+var layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
+
+
+
+
+var control = L.Routing.control({
+    waypoints: [],
+    createMarker: function(i, waypoint, n) {
+        var marker = L.marker(waypoint.latLng);
+        return marker;
+    },
+    router: L.Routing.osrmv1({
+        serviceUrl: 'https://router.project-osrm.org/route/v1'
+    })
+}).addTo(map);
+
+// Manejar los clics en el mapa para seleccionar puntos de inicio y destino
+map.on('click', function(e) {
+    var waypoints = control.getWaypoints();
+
+    if (waypoints[0].latLng === null) {
+        waypoints[0].latLng = e.latlng;  // Establecer el punto de inicio
+    } else if (waypoints[1].latLng === null) {
+        waypoints[1].latLng = e.latlng;  // Establecer el punto de destino
+        control.setWaypoints(waypoints); // Actualizar la ruta
+        avoidZonesRouting(waypoints[0].latLng, waypoints[1].latLng);
+    } else {
+        // Reiniciar los puntos
+        control.setWaypoints([]);
     }
+});
+
+// Función para calcular rutas evitando zonas
+function avoidZonesRouting(start, end) {
+    // Obtener la ruta original
+    control.getRouter().route([
+        L.Routing.waypoint(start),
+        L.Routing.waypoint(end)
+    ], function(err, routes) {
+        if (routes) {
+            var route = routes[0].coordinates;
+            var intersects = false;
+
+            // Verificar si la ruta pasa por alguna zona restringida
+            for (var i = 0; i < avoidZones.features.length; i++) {
+                var zone = avoidZones.features[i];
+
+                for (var j = 0; j < route.length; j++) {
+                    var point = [route[j].lng, route[j].lat];
+
+                    if (turf.booleanPointInPolygon(point, zone)) {
+                        intersects = true;
+                        break;
+                    }
+                }
+
+                if (intersects) {
+                    break;
+                }
+            }
+
+            if (intersects) {
+                alert("La ruta planeada pasa por una zona restringida. Recalculando...");
+                recalculateRouteAvoidingZones(start, end);
+            } else {
+                control.setWaypoints([start, end]);  // Dibujar la ruta
+            }
+        }
+    });
 }
 
-// Cargar el archivo GeoJSON y crear la capa
-fetch('bls/drenaje.geojson')
-    .then(response => response.json())
-    .then(data => {
-        lDrenaje = L.geoJSON(data, {
-            onEachFeature: onEachFeature,
-		style: drenaje
-        });
-    })
-    .catch(error => console.error('Error cargando el archivo GeoJSON:', error));
-
-// Botón para activar/desactivar la capa GeoJSON
-var geojsonButton = L.control({position: 'topright'});
-
-geojsonButton.onAdd = function(map) {
-    var div = L.DomUtil.create('div', 'geojson-control');
-    div.innerHTML = '<button id="toggle-geojson">Mostrar/Ocultar drenaje</button>';
-    div.firstChild.onclick = function() {
-        if (map.hasLayer(lDrenaje)) {
-            map.removeLayer(lDrenaje);
-        } else {
-            lDrenaje.addTo(map);
-        }
-    };
-    return div;
-};
-geojsonButton.addTo(map);
-
-var lCuencas;
-
-fetch('bls/cuencas.geojson')
-    .then(response => response.json())
-    .then(data => {
-        lCuencas = L.geoJSON(data, {
-            onEachFeature: onEachFeature,
-		style: cuencas
-        });
-    })
-    .catch(error => console.error('Error cargando el archivo GeoJSON:', error));
-
-// Botón para activar/desactivar la capa GeoJSON
-var geojsonButtonCu = L.control({position: 'topright'});
-
-geojsonButtonCu.onAdd = function(map) {
-    var div = L.DomUtil.create('div', 'geojson-control');
-    div.innerHTML = '<button id="toggle-geojson">Mostrar/Ocultar cuencas</button>';
-    div.firstChild.onclick = function() {
-        if (map.hasLayer(lCuencas)) {
-            map.removeLayer(lCuencas);
-        } else {
-            lCuencas.addTo(map);
-        }
-    };
-    return div;
-};
-geojsonButtonCu.addTo(map);
-
-var lPeligros;
-
-fetch('bls/peligros.geojson')
-    .then(response => response.json())
-    .then(data => {
-        lPeligros = L.geoJSON(data, {
-            onEachFeature: onEachFeature,
-		style: peligros
-        });
-    })
-    .catch(error => console.error('Error cargando el archivo GeoJSON:', error));
-
-// Botón para activar/desactivar la capa GeoJSON
-var geojsonButtonPe = L.control({position: 'topright'});
-
-geojsonButtonPe.onAdd = function(map) {
-    var div = L.DomUtil.create('div', 'geojson-control');
-	
-    div.innerHTML = '<button id="toggle-geojson">Mostrar/Ocultar Peligros</button>';
-    div.firstChild.onclick = function() {
-        if (map.hasLayer(lPeligros)) {
-            map.removeLayer(lPeligros);
-        } else {
-            lPeligros.addTo(map);
-        }
-    };
-    return div;
-};
-geojsonButtonPe.addTo(map);
-
-var lArroyos;
-
-
-fetch('bls/arroyos.geojson')
-    .then(response => response.json())
-    .then(data => {
-        lArroyos = L.geoJSON(data, {
-            onEachFeature: onEachFeature,
-		style: arroyos 
-        });
-    })
-    .catch(error => console.error('Error cargando el archivo GeoJSON:', error));
-
-// Botón para activar/desactivar la capa GeoJSON
-var geojsonButtonAr = L.control({position: 'topright'});
-
-geojsonButtonAr.onAdd = function(map) {
-    var div = L.DomUtil.create('div', 'geojson-control');
-    div.innerHTML = '<button id="toggle-geojson">Mostrar/Ocultar Arroyos</button>';
-    div.firstChild.onclick = function() {
-        if (map.hasLayer(lArroyos)) {
-            map.removeLayer(lArroyos);
-        } else {
-            lArroyos.addTo(map);
-        }
-    };
-    return div;
-};
-geojsonButtonAr.addTo(map);
+// Función para recalcular ruta evitando zonas (a implementar)
+function recalculateRouteAvoidingZones(start, end) {
+    // Aquí puedes añadir la lógica para recalcular la ruta evitando las zonas
+    alert("Ruta recalculada evitando las zonas");
+}
