@@ -63,76 +63,97 @@ var overlayMaps = {
 };
 
 
-var layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
 
-var control = L.Routing.control({
-    waypoints: [],
-    createMarker: function(i, waypoint, n) {
-        var marker = L.marker(waypoint.latLng);
-        return marker;
-    },
-    router: L.Routing.osrmv1({
-        serviceUrl: 'https://router.project-osrm.org/route/v1'
-    })
-}).addTo(map);
+    var layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
 
-// Manejar los clics en el mapa para seleccionar puntos de inicio y destino
-map.on('click', function(e) {
-    var waypoints = control.getWaypoints();
+    var control = L.Routing.control({
+        waypoints: [],
+        createMarker: function(i, waypoint, n) {
+            var marker = L.marker(waypoint.latLng);
+            return marker;
+        },
+        router: L.Routing.osrmv1({
+            serviceUrl: 'https://router.project-osrm.org/route/v1'
+        })
+    }).addTo(map);
 
-    if (waypoints[0].latLng === null) {
-        waypoints[0].latLng = e.latlng;  // Establecer el punto de inicio
-    } else if (waypoints[1].latLng === null) {
-        waypoints[1].latLng = e.latlng;  // Establecer el punto de destino
-        control.setWaypoints(waypoints); // Actualizar la ruta
-        avoidZonesRouting(waypoints[0].latLng, waypoints[1].latLng);
-    } else {
-        // Reiniciar los puntos
-        control.setWaypoints([]);
-    }
-});
+    // Array to store warning markers
+    var warningMarkers = [];
 
-// Función para calcular rutas evitando zonas
-function avoidZonesRouting(start, end) {
-    // Obtener la ruta original
-    control.getRouter().route([
-        L.Routing.waypoint(start),
-        L.Routing.waypoint(end)
-    ], function(err, routes) {
-        if (routes) {
-            var route = routes[0].coordinates;
-            var intersects = false;
+    // Manejar los clics en el mapa para seleccionar puntos de inicio y destino
+    map.on('click', function(e) {
+        var waypoints = control.getWaypoints();
 
-            // Verificar si la ruta pasa por alguna zona restringida
-            for (var i = 0; i < avoidZones.features.length; i++) {
-                var zone = avoidZones.features[i];
-
-                for (var j = 0; j < route.length; j++) {
-                    var point = [route[j].lng, route[j].lat];
-
-                    if (turf.booleanPointInPolygon(point, zone)) {
-                        intersects = true;
-                        break;
-                    }
-                }
-
-                if (intersects) {
-                    break;
-                }
-            }
-
-            if (intersects) {
-                alert("La ruta planeada pasa por una zona restringida. Recalculando...");
-                recalculateRouteAvoidingZones(start, end);
-            } else {
-                control.setWaypoints([start, end]);  // Dibujar la ruta
-            }
+        if (!waypoints[0].latLng) {
+            waypoints[0].latLng = e.latlng;  // Establecer el punto de inicio
+        } else if (!waypoints[1].latLng) {
+            waypoints[1].latLng = e.latlng;  // Establecer el punto de destino
+            control.setWaypoints(waypoints); // Actualizar la ruta
+            checkRouteIntersection(waypoints[0].latLng, waypoints[1].latLng);
+        } else {
+            // Reiniciar los puntos
+            control.setWaypoints([]);
+            // Remove any existing warning markers when no route is drawn
+            removeWarningMarkers();
         }
     });
-}
 
-// Función para recalcular ruta evitando zonas (a implementar)
-function recalculateRouteAvoidingZones(start, end) {
-    // Aquí puedes añadir la lógica para recalcular la ruta evitando las zonas
-    alert("Ruta recalculada evitando las zonas");
-}
+    // Función para verificar si la ruta pasa por alguna zona peligrosa
+    function checkRouteIntersection(start, end) {
+        // Remove existing warning markers whenever a new route is drawn
+        removeWarningMarkers();
+
+        control.getRouter().route([
+            L.Routing.waypoint(start),
+            L.Routing.waypoint(end)
+        ], function(err, routes) {
+            if (routes) {
+                var route = routes[0].coordinates;
+                var hazards = lPeligros.toGeoJSON(); // Convertir el layer a GeoJSON
+                var intersects = false;
+
+                // Iterar sobre cada punto de la ruta
+                for (var i = 0; i < route.length; i++) {
+                    var point = turf.point([route[i].lng, route[i].lat]);
+
+                    // Iterar sobre cada zona peligrosa
+                    for (var j = 0; j < hazards.features.length; j++) {
+                        var hazardZone = hazards.features[j];
+
+                        // Verificar si el punto está dentro de la zona peligrosa
+                        if (turf.booleanPointInPolygon(point, hazardZone)) {
+                            intersects = true;
+                            // Colocar un marcador de advertencia en el punto de intersección
+                            var warningMarker = L.marker([route[i].lat, route[i].lng], {
+                                icon: L.divIcon({
+                                    className: 'warning-icon',
+                                    html: '<i style="color: red; font-size: 24px;">⚠️</i>',
+                                    iconSize: [30, 30]
+                                })
+                            }).addTo(map);
+
+                            // Mostrar el popup con la advertencia
+                            warningMarker.bindPopup("<b>Advertencia:</b> La ruta pasa por una zona peligrosa.").openPopup();
+
+                            // Add the warning marker to the array
+                            warningMarkers.push(warningMarker);
+
+                            break;
+                        }
+                    }
+
+                    if (intersects) {
+                        break; // Si ya se encontró la intersección, salimos del loop
+                    }
+                }
+            }
+        });
+    }
+
+    // Function to remove all warning markers
+    function removeWarningMarkers() {
+        for (var i = 0; i < warningMarkers.length; i++) {
+            map.removeLayer(warningMarkers[i]);
+        }
+        warningMarkers = [];  // Clear the array after removing markers
+    }
